@@ -16,10 +16,36 @@ var JsrRoot = PRoot.create({
         var ws = WriteStream.create();
         this.printOn(ws);
         return ws.contents();
+    },
+    __keys: function() {
+        var keys = [];
+        for (var k in this) {
+            keys.push(k);
+        }
+        return keys;
+    },
+    log: function() {
+        //does method pass self to a function?
+        var keys = this.__keys();
+        var length = keys.length;
+        var functionSourceString = arguments.callee.caller.toString();
+        for (var i = 0; i < length; i++) {
+            var key = keys[i];
+            var valueString = this[key].toString();
+            if (functionSourceString === valueString) {
+                alert(key);
+                return this;
+            }
+        }
+        alert('unknown function');
+        return this;
     }
 });
 var JsrConstant = JsrRoot.create({
-    _assignedColor: 'cyan'
+    colorButton: 'green',
+    colorButtonClean: 'cyan',
+    colorButtonDirty: 'brown'
+
 });
 var JsrApp = JsrRoot.create({
     ready: function() {
@@ -32,15 +58,17 @@ var JsrButtonManager = JsrRoot.create({
     button: function(nId, sText, fClick) {
         var $button = $('#btn' + nId);
         $button.text(sText).click(fClick);
-        $button.css('background-color', JsrConstant._assignedColor);
+        $button.css('background-color', JsrConstant.colorButtonClean);
         return this;
     },
     bindButtons: function() {
         var id = 1;
         this.button(id++, 'Eval', function(e) {
+            xxx();
             JsrEval.evaluateLines();
         });
         this.button(id++, 'cr to \\n', function(e) {
+            xxx();
             JsrEval.breakString();
         });
         this.button(id++, 'cr to \\n + cr', function(e) {
@@ -54,15 +82,62 @@ var JsrButtonManager = JsrRoot.create({
         });
         this.button(id++, 'Save Page', function(e) {
             JsrTarText.save();
+            JsrReadButton.resetMenu();
         });
-        this.button(id++, 'Read Page', function(e) {
-            JsrTarText.read();
-        });
+        JsrReadButton.id('#btn' + id++).setMenu().colorClean();
         this.button(id++, 'Test', function(e) {
-            JsrCouchDb.readIds(function(aIds) {
-                alert(aIds);
+        });
+        return this;
+    }
+});
+var JsrButton = JsrRoot.create({
+    _id: null,
+    id: function(sId) {
+        if (sId) {
+            this._id = sId;
+            return this;
+        } else {
+            return this._id;
+        }
+    },
+    colorClean: function() {
+        $(this._id).css('background-color', JsrConstant.colorButtonClean);
+    },
+    colorDirty: function() {
+        $(this._id).css('background-color', JsrConstant.colorButtonDirty);
+    }
+});
+var JsrReadButton = JsrButton.create({
+    generateReadCallback: function(sName) {
+        return function() {
+            JsrCouchDb.readNameText(sName, function(sText) {
+                JsrTarText.setText(sText);
+            });
+        };
+    },
+    resetMenu: function() {
+        var _this = this;
+        JsrCouchDb.readIds(function(aIds) {
+            var menuArray = [];
+            aIds.forEach(function(each) {
+                var item = {};
+                var callback = _this.generateReadCallback(each);
+                item[each] = callback;
+                menuArray.push(item);
+            });
+            menuArray.push({'Cancel': function() {}});
+            var menu = $.contextMenu.create(menuArray, {});
+            $(_this._id).click(function(e) {
+                menu.show(this, e);
+                return false;
             });
         });
+        return this;
+    },
+    setMenu: function() {
+        $.contextMenu.theme = 'osx';
+        $(this._id).text('Read Page');
+        this.resetMenu();
         return this;
     }
 });
@@ -75,7 +150,7 @@ var JsrCouchDb = JsrRoot.create({
         $.ajax({
             type: 'get',
             url: '_view/ids',
-            success:    function(sDocument) {
+            success: function(sDocument) {
                 var document = JSON.parse(sDocument);
                 var array = document.rows;
                 var ids = array.map(function(each) {
@@ -91,7 +166,6 @@ var JsrCouchDb = JsrRoot.create({
     },
     saveDocument: function(oDocument) {
         //assume correct _id and correct _rev
-        alert('saving document');
         $.ajax({
             type:    'put',
             url:    '../../' + oDocument._id,
@@ -116,13 +190,11 @@ var JsrCouchDb = JsrRoot.create({
             type: 'get',
             url: '../../' + sName + "?revs=true",
             success: function(sDocument) {
-                alert('get success ' + sDocument);
                 documentObject = JSON.parse(sDocument);
                 documentObject.text = sText;
                 _this.saveDocument(documentObject);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                alert('get error ' + sDocument);
                 documentObject = {
                     _id: sName
                 };
@@ -232,10 +304,8 @@ var JsrEval = JsrRoot.create({
     // Multiline String
     //===========================
     replaceCr: function (s, sReplacement) {
-        alert(3);
         var result = s.replace(/\n/g, sReplacement);
         result = "'" + result + "'";
-        alert('replaceCr result' + result);
         return result;
     },
     _arrayOfLines: function(s) {
@@ -444,11 +514,11 @@ JsrTarText = JsrTextArea.create({
     // storage
     //=======================
     save: function() {
-        JsrCouchDb.saveNameText('TODO', this.getText());
+        JsrCouchDb.saveNameText(this.name(), this.getText());
     },
-    read: function() {
+    read: function(sName) {
         var _this = this;
-        JsrCouchDb.readNameText('TODO', function(sText) {
+        JsrCouchDb.readNameText(sName, function(sText) {
             _this.setText(sText);
         });
     },
