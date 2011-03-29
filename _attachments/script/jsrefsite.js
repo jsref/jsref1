@@ -5,6 +5,8 @@
  *
  * By Stanley R. Silver and Peter de Croos
  *******************************************************************************/
+//todo string methods to buttons
+//todo start wiki design
 
 /*******************************************************************************
  * Root
@@ -21,7 +23,6 @@ var JsrConstant = JsrRoot.create({
 });
 var JsrApp = JsrRoot.create({
     ready: function() {
-        alert(1);
         $('.tar').tabby();
         JsrButtonManager.bindButtons();
         JsrTarText.bindKeyEvents();
@@ -39,9 +40,114 @@ var JsrButtonManager = JsrRoot.create({
         this.button(id++, 'Eval', function(e) {
             JsrEval.evaluateLines();
         });
+        this.button(id++, 'cr to \\n', function(e) {
+            JsrEval.breakString();
+        });
+        this.button(id++, 'cr to \\n + cr', function(e) {
+            JsrEval.breakStringPlus();
+        });
+        this.button(id++, 'array of lines', function(e) {
+            JsrEval.arrayOfLines();
+        });
+        this.button(id++, 'main lines', function(e) {
+            JsrEval.mainLines();
+        });
+        this.button(id++, 'Save Page', function(e) {
+            JsrTarText.save();
+        });
+        this.button(id++, 'Read Page', function(e) {
+            JsrTarText.read();
+        });
+        this.button(id++, 'Test', function(e) {
+            JsrCouchDb.readIds(function(aIds) {
+                alert(aIds);
+            });
+        });
         return this;
     }
 });
+
+/*******************************************************************************
+ * Couch
+ *******************************************************************************/
+var JsrCouchDb = JsrRoot.create({
+    readIds: function(fCallback) {
+        $.ajax({
+            type: 'get',
+            url: '_view/ids',
+            success:    function(sDocument) {
+                var document = JSON.parse(sDocument);
+                var array = document.rows;
+                var ids = array.map(function(each) {
+                    return each.key;
+                })
+                fCallback(ids);
+            },
+            error: function (oXmlHttpRequest, sStatus, oError) {
+                alert("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                .responseText);
+            }
+        });
+    },
+    saveDocument: function(oDocument) {
+        //assume correct _id and correct _rev
+        alert('saving document');
+        $.ajax({
+            type:    'put',
+            url:    '../../' + oDocument._id,
+            data:    JSON.stringify(oDocument),
+            async:    false,
+            success:    function(sDocument) {
+                var document = JSON.parse(sDocument);
+                alert("Your page has been saved..." + sDocument, {header: "Cool!"});
+                $.jGrowl("Your page has been saved..." + sDocument, {header: "Cool!"});
+            },
+            error: function (oXmlHttpRequest, sStatus, oError) {
+                alert("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                .responseText);
+            }
+        });
+    },
+    saveNameText: function(sName, sText) {
+        // get existing object (so will have correct _rev) or create new object
+        var documentObject;
+        var _this = this;
+        $.ajax({
+            type: 'get',
+            url: '../../' + sName + "?revs=true",
+            success: function(sDocument) {
+                alert('get success ' + sDocument);
+                documentObject = JSON.parse(sDocument);
+                documentObject.text = sText;
+                _this.saveDocument(documentObject);
+            },
+            error: function (oXmlHttpRequest, sStatus, oError) {
+                alert('get error ' + sDocument);
+                documentObject = {
+                    _id: sName
+                };
+                documentObject.text = sText;
+                _this.saveDocument(documentObject);
+            }
+        });
+    },
+    readNameText: function(sName, fCallback) {
+        $.ajax({
+            type:    'get',
+            url:    '../../' + sName + "?revs=true",
+            success: function(sDocument) {
+                var document = JSON.parse(sDocument);
+                var text = document.text;
+                fCallback(text);
+            },
+            error: function (oXmlHttpRequest, sStatus, oError) {
+                alert("Ooooops!, request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                .responseText);
+            }
+        });
+    }
+});
+
 /*******************************************************************************
  * Eval
  *******************************************************************************/
@@ -57,14 +163,26 @@ var JsrEval = JsrRoot.create({
         return this;
     },
     breakString: function () {
-        return this.replaceCr('\\n');
+        var text = JsrTarText.getText();
+        var result = this.replaceCr(text, '\\n');
+        JsrTarText.setText(result);
+        return this;
     },
     breakStringPlus: function () {
-        return this.replaceCr("\\n' +\n'");
+        var text = JsrTarText.getText();
+        var result = this.replaceCr(text, "\\n' +\n'");
+        JsrTarText.setText(result);
+        return this;
+    },
+    arrayOfLines: function() {
+        var text = JsrTarText.getText();
+        var result = this._arrayOfLines(text);
+        JsrTarText.setText(result);
+        return this;
     },
     mainLines: function () {
-        var lines = JsrTarText.getText();
-        var result = this._mainLines(lines);
+        var text = JsrTarText.getText();
+        var result = this._mainLines(text);
         JsrTarText.setText(result);
         return this;
     },
@@ -113,13 +231,24 @@ var JsrEval = JsrRoot.create({
     //===========================
     // Multiline String
     //===========================
-    replaceCr: function (sReplacement) {
-        DfInput.getSetText(function(sInput) {
-            var result = sInput.replace(/\n/g, sReplacement);
-            result = "'" + result + "'";
-            return result;
+    replaceCr: function (s, sReplacement) {
+        alert(3);
+        var result = s.replace(/\n/g, sReplacement);
+        result = "'" + result + "'";
+        alert('replaceCr result' + result);
+        return result;
+    },
+    _arrayOfLines: function(s) {
+        var lines = s.split('\n');
+        var result = '[';
+        lines.forEach(function(each, i) {
+            if (i !== 0) {
+                result += ",";
+            }
+            result += "\n    '" + each + "'"
         });
-        return this;
+        result += '\n]';
+        return result;
     },
     //===========================
     // Main Lines
@@ -144,19 +273,22 @@ var JsrEval = JsrRoot.create({
         return min;
     },
     _mainLines: function (sLines) {
-        var length = _this.minWhitePrefixLength(sLines);
+        var length = this.minWhitePrefixLength(sLines);
         var lines = sLines.split('\n');
-        var trimmed = $.map(lines, function(each) {
+        var trimmed = lines.map(function(each) {
             return each.slice(length);
         });
-        var notSpace = /^\S/;
-        var main = $.grep(trimmed, function(each) {
-            return notSpace.test(each);
+        var notSpaceStart = /^\S/;
+        var noSpace = trimmed.filter(function(each) {
+            return notSpaceStart.test(each);
         });
-        var result = main.join('\n');
+        var alphaStart = /^\w/;
+        var alpha = noSpace.filter(function(each) {
+            return alphaStart.test(each);
+        });
+        var result = alpha.join('\n');
         return result;
     }
-
 });
 /*******************************************************************************
  * Textareas
@@ -306,6 +438,34 @@ var JsrTextArea = JsrRoot.create({
     }
 });
 JsrTarText = JsrTextArea.create({
-    _id: '#tarText'
-})
+    _id: '#tarText',
 
+    //=======================
+    // storage
+    //=======================
+    save: function() {
+        JsrCouchDb.saveNameText('TODO', this.getText());
+    },
+    read: function() {
+        var _this = this;
+        JsrCouchDb.readNameText('TODO', function(sText) {
+            _this.setText(sText);
+        });
+    },
+
+    //=======================
+    // name
+    //=======================
+    firstLine: function(s) {
+        var lines = s.split('\n');
+        var first = lines[0];
+        return first;
+    },
+    spaceToUnderscore: function(s) {
+        return s.replace(/ /, '_');
+    },
+    name: function() {
+        return this.spaceToUnderscore(this.firstLine(this.getText()));
+        return this;
+    }
+});
