@@ -4,6 +4,8 @@
  * Started March, 2011
  *
  * By Stanley R. Silver and Peter de Croos
+ *
+ * http://javascripttoolbox.com/lib/contextmenu/
  *******************************************************************************/
 //todo string methods to buttons
 //todo start wiki design
@@ -74,26 +76,22 @@ var JsrButtonManager = JsrRoot.create({
     },
     bindButtons: function() {
         var id = 1;
-        this.button(id++, 'Eval', function(e) {
-            JsrEval.evaluateLines();
-        });
-        this.button(id++, 'cr to \\n', function(e) {
-            JsrEval.breakString();
-        });
-        this.button(id++, 'cr to \\n + cr', function(e) {
-            JsrEval.breakStringPlus();
-        });
-        this.button(id++, 'array of lines', function(e) {
-            JsrEval.arrayOfLines();
-        });
-        this.button(id++, 'main lines', function(e) {
-            JsrEval.mainLines();
-        });
         this.button(id++, 'Save Page', function(e) {
-            JsrTarText.save();
-            JsrReadButton.resetMenu();
+            JsrTarText.save(function() {
+                log(11);
+                JsrReadButton.resetMenu();
+                JsrDeleteButton.resetMenu();
+            });
         });
         JsrReadButton.id('#btn' + id++).setMenu().colorClean();
+        JsrDeleteButton.id('#btn' + id++).setMenu().colorClean();
+        this.button(id++, 'Clear', function(e) {
+            JsrTarText.clear();
+        });
+        this.button(id++, 'JavaScript Eval', function(e) {
+            JsrEval.evaluateLines();
+        });
+        JsrStringButton.id('#btn' + id++).setMenu().colorClean();
         this.button(id++, 'Test', function(e) {
         });
         return this;
@@ -114,15 +112,6 @@ var JsrButton = JsrRoot.create({
     },
     colorDirty: function() {
         $(this._id).css('background-color', JsrConstant.colorButtonDirty);
-    }
-});
-var JsrReadButton = JsrButton.create({
-    generateReadCallback: function(sName) {
-        return function() {
-            JsrCouchDb.readNameText(sName, function(sText) {
-                JsrTarText.setText(sText);
-            });
-        };
     },
     resetMenu: function() {
         var _this = this;
@@ -130,13 +119,13 @@ var JsrReadButton = JsrButton.create({
             var menuArray = [];
             aIds.forEach(function(each) {
                 var item = {};
-                var callback = _this.generateReadCallback(each);
+                var callback = _this.generateMenuCallback(each);
                 item[each] = callback;
                 menuArray.push(item);
             });
             menuArray.push({'Cancel': function() {}});
             var menu = $.contextMenu.create(menuArray, {});
-            $(_this._id).click(function(e) {
+            $(_this._id).unbind('click').click(function(e) {
                 menu.show(this, e);
                 return false;
             });
@@ -145,9 +134,63 @@ var JsrReadButton = JsrButton.create({
     },
     setMenu: function() {
         $.contextMenu.theme = 'osx';
-        $(this._id).text('Read Page');
+        $(this._id).text(this.name());
         this.resetMenu();
         return this;
+    }
+});
+var JsrStringButton = JsrButton.create({
+    name: function() {
+        return 'JavaScript String';
+    },
+    resetMenu: function() {
+        var menuArray = [
+            {'cr to \\n': function(e) {
+                JsrEval.breakString();
+            }},
+            {'cr to \\n + cr': function(e) {
+                JsrEval.breakStringPlus();
+            }},
+            {'array of lines': function(e) {
+                JsrEval.arrayOfLines();
+            }},
+            {'main lines': function(e) {
+                JsrEval.mainLines();
+            }}
+        ];
+        var menu = $.contextMenu.create(menuArray, {});
+        $(this._id).unbind('click').click(function(e) {
+            menu.show(this, e);
+            return false;
+        });
+        return this;
+    }
+});
+var JsrReadButton = JsrButton.create({
+    name: function() {
+        return 'Read Page';
+    },
+    generateMenuCallback: function(sName) {
+        return function() {
+            JsrCouchDb.readNameText(sName, function(sText) {
+                JsrTarText.setText(sText);
+            });
+        };
+    }
+});
+var JsrDeleteButton = JsrButton.create({
+    name: function() {
+        return 'Delete Page';
+    },
+    generateMenuCallback: function(sName) {
+        return function() {
+            if (confirm('Delete page ' + sName + '?')) {
+                JsrCouchDb.deleteName(sName, function(oDocument) {
+                    JsrReadButton.resetMenu();
+                    JsrDeleteButton.resetMenu();
+                });
+            }
+        };
     }
 });
 
@@ -173,8 +216,9 @@ var JsrCouchDb = JsrRoot.create({
             }
         });
     },
-    saveDocument: function(oDocument) {
+    saveDocument: function(oDocument, fCallback) {
         //assume correct _id and correct _rev
+        logNO('fCallback', fCallback);
         $.ajax({
             type:    'put',
             url:    '../../' + oDocument._id,
@@ -182,8 +226,13 @@ var JsrCouchDb = JsrRoot.create({
             async:    false,
             success:    function(sDocument) {
                 var document = JSON.parse(sDocument);
-                alert("Your page has been saved..." + sDocument, {header: "Cool!"});
-                $.jGrowl("Your page has been saved..." + sDocument, {header: "Cool!"});
+                if (fCallback) {
+                    fCallback(document);
+                }
+                alert("Your page has been saved with id " + document.id);
+                if ($.jGrowl) {
+                    $.jGrowl("Your page has been saved...", {header: "Cool!"});
+                }
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
                 alert("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
@@ -191,24 +240,25 @@ var JsrCouchDb = JsrRoot.create({
             }
         });
     },
-    saveNameText: function(sName, sText) {
+    saveNameText: function(sName, sText, fCallback) {
         // get existing object (so will have correct _rev) or create new object
-        var documentObject;
+        fCallback = fCallback || null;
+        var document;
         var _this = this;
         $.ajax({
             type: 'get',
             url: '../../' + sName + "?revs=true",
             success: function(sDocument) {
-                documentObject = JSON.parse(sDocument);
-                documentObject.text = sText;
-                _this.saveDocument(documentObject);
+                document = JSON.parse(sDocument);
+                document.text = sText;
+                _this.saveDocument(document, fCallback);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                documentObject = {
+                document = {
                     _id: sName
                 };
-                documentObject.text = sText;
-                _this.saveDocument(documentObject);
+                document.text = sText;
+                _this.saveDocument(document, fCallback);
             }
         });
     },
@@ -224,6 +274,45 @@ var JsrCouchDb = JsrRoot.create({
             error: function (oXmlHttpRequest, sStatus, oError) {
                 alert("Ooooops!, request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
                 .responseText);
+            }
+        });
+    },
+    deleteDocument: function(oDocument, fCallback) {
+        //assume correct _id and correct _rev
+        $.ajax({
+            type:    'delete',
+            url:    '../../' + oDocument._id + '?rev=' + oDocument._rev,
+            async:    false,
+            success:    function(sDocument) {
+                var document = JSON.parse(sDocument);
+                if (fCallback) {
+                    fCallback(document);
+                }
+                alert("Page has been deleted with id " + document.id);
+                if ($.jGrowl) {
+                    $.jGrowl("Page has been deleted with id " + document.id, {header: "Cool!"});
+                }
+            },
+            error: function (oXmlHttpRequest, sStatus, oError) {
+                alert("Ooooops!, delete request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                .responseText);
+            }
+        });
+    },
+    deleteName: function(sName, fCallback) {
+        // get existing object (so will have correct _rev)
+        fCallback = fCallback || null;
+        var document;
+        var _this = this;
+        $.ajax({
+            type: 'get',
+            url: '../../' + sName + "?revs=true",
+            success: function(sDocument) {
+                document = JSON.parse(sDocument);
+                _this.deleteDocument(document, fCallback);
+            },
+            error: function (oXmlHttpRequest, sStatus, oError) {
+                alert('Document ' + sName + ' could not be accessed');
             }
         });
     }
@@ -506,8 +595,9 @@ JsrTarText = JsrTextArea.create({
     //=======================
     // storage
     //=======================
-    save: function() {
-        JsrCouchDb.saveNameText(this.name(), this.getText());
+    save: function(fCallback) {
+        fCallback = fCallback || null;
+        JsrCouchDb.saveNameText(this.name(), this.getText(), fCallback);
     },
     read: function(sName) {
         var _this = this;
