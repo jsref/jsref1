@@ -9,6 +9,16 @@
 //todo start wiki design
 
 /*******************************************************************************
+ * Debugging
+ *******************************************************************************/
+function logNO(sName, o) {
+    console.log('%s: %o', sName, o);
+}
+function log(s) {
+    console.log(s);
+}
+
+/*******************************************************************************
  * Root
  *******************************************************************************/
 var JsrRoot = PRoot.create({
@@ -24,20 +34,21 @@ var JsrRoot = PRoot.create({
         }
         return keys;
     },
-    log: function() {
+    log: function(sMessage) {
         //does method pass self to a function?
+        sMessage = sMessage || '';
         var keys = this.__keys();
         var length = keys.length;
         var functionSourceString = arguments.callee.caller.toString();
         for (var i = 0; i < length; i++) {
             var key = keys[i];
-            var valueString = this[key].toString();
-            if (functionSourceString === valueString) {
-                alert(key);
+            var valueAtKeyString = this[key].toString();
+            if (functionSourceString === valueAtKeyString) {
+                console.log('%o %s %s', this, key, sMessage);
                 return this;
             }
         }
-        alert('unknown function');
+        console.log('%o %s %s', this, 'x', sMessage);
         return this;
     }
 });
@@ -64,11 +75,9 @@ var JsrButtonManager = JsrRoot.create({
     bindButtons: function() {
         var id = 1;
         this.button(id++, 'Eval', function(e) {
-            xxx();
             JsrEval.evaluateLines();
         });
         this.button(id++, 'cr to \\n', function(e) {
-            xxx();
             JsrEval.breakString();
         });
         this.button(id++, 'cr to \\n + cr', function(e) {
@@ -155,7 +164,7 @@ var JsrCouchDb = JsrRoot.create({
                 var array = document.rows;
                 var ids = array.map(function(each) {
                     return each.key;
-                })
+                });
                 fCallback(ids);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
@@ -476,30 +485,14 @@ var JsrTextArea = JsrRoot.create({
     //=======================
     bindKeyEvents: function() {
         var _this = this;
-        $(this.id()).keypress(function(e) {
-            _this.isDirty();
+        $(this.id()).keydown(function(e) {
+            //_this.isDirty();
             //metaKey, ctrlKey, shiftKey, altKey
             if (e.metaKey) {
-                var charCode = e.keyCode || e.charCode;
+                var charCode = e.which;
                 var letter = String.fromCharCode(charCode);
-                if (letter === 's') {
+                if (letter === 's' || letter === 'S') {
                     _this.save();
-                    return false;
-                }
-                //if (letter === 'r') {
-                //    _this.read();
-                //    return false;
-                //}
-                if (letter === 'd') {
-                    _this.insertDate();
-                    return false;
-                }
-                if (letter === 'C') {
-                    _this.insertComment();
-                    return false;
-                }
-                if (letter === 'e') {
-                    _this.addPaths();
                     return false;
                 }
             }
