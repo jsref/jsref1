@@ -201,9 +201,10 @@ var JsrCouchDb = JsrRoot.create({
     readIds: function(fCallback) {
         $.ajax({
             type: 'get',
-            url: '_view/ids',
+            url: '_view/page-ids',
             success: function(sDocument) {
                 var document = JSON.parse(sDocument);
+                logNO('readIds document', document);
                 var array = document.rows;
                 var ids = array.map(function(each) {
                     return each.key;
@@ -211,7 +212,7 @@ var JsrCouchDb = JsrRoot.create({
                 fCallback(ids);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                alert("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                $.jGrowl("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
                 .responseText);
             }
         });
@@ -229,13 +230,10 @@ var JsrCouchDb = JsrRoot.create({
                 if (fCallback) {
                     fCallback(document);
                 }
-                alert("Your page has been saved with id " + document.id);
-                if ($.jGrowl) {
-                    $.jGrowl("Your page has been saved...", {header: "Cool!"});
-                }
+                $.jGrowl("Your page has been saved with id " + document.id, {header: "Saved"});
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                alert("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                $.jGrowl("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
                 .responseText);
             }
         });
@@ -251,6 +249,7 @@ var JsrCouchDb = JsrRoot.create({
             success: function(sDocument) {
                 document = JSON.parse(sDocument);
                 document.text = sText;
+                document.type = 'page';
                 _this.saveDocument(document, fCallback);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
@@ -258,6 +257,7 @@ var JsrCouchDb = JsrRoot.create({
                     _id: sName
                 };
                 document.text = sText;
+                document.type = 'page';
                 _this.saveDocument(document, fCallback);
             }
         });
@@ -272,7 +272,7 @@ var JsrCouchDb = JsrRoot.create({
                 fCallback(text);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                alert("Ooooops!, request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                $.jGrowl("Ooooops!, request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
                 .responseText);
             }
         });
@@ -288,13 +288,10 @@ var JsrCouchDb = JsrRoot.create({
                 if (fCallback) {
                     fCallback(document);
                 }
-                alert("Page has been deleted with id " + document.id);
-                if ($.jGrowl) {
-                    $.jGrowl("Page has been deleted with id " + document.id, {header: "Cool!"});
-                }
+                $.jGrowl("Page has been deleted with id " + document.id, {header: "Deleted"});
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                alert("Ooooops!, delete request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
+                $.jGrowl("Ooooops!, delete request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
                 .responseText);
             }
         });
@@ -582,9 +579,13 @@ var JsrTextArea = JsrRoot.create({
                 var letter = String.fromCharCode(charCode);
                 if (letter === 's' || letter === 'S') {
                     _this.save();
+                    //I don't fully understand stopping the event
+                    e.preventDefault();
+                    e.stopPropagation();
                     return false;
                 }
             }
+            //Does not stop the event
             return true;
         });
     }
