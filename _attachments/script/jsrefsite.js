@@ -75,6 +75,7 @@ var JsrButtonManager = JsrRoot.create({
         return this;
     },
     bindButtons: function() {
+        log(11);
         var id = 1;
         this.button(id++, 'Save Page', function(e) {
             JsrTarText.save(function() {
@@ -92,7 +93,12 @@ var JsrButtonManager = JsrRoot.create({
             JsrEval.evaluateLines();
         });
         JsrStringButton.id('#btn' + id++).setMenu().colorClean();
-        this.button(id++, 'Test', function(e) {
+        log(12);
+        this.button(id++, 'Replace', function(e) {
+            JsrTarText.replaceWith('<h1>TEST</h1>');
+        });
+        this.button(id++, 'Mark It Up', function(e) {
+            JsrTarText.markitup();
         });
         return this;
     }
@@ -291,8 +297,8 @@ var JsrCouchDb = JsrRoot.create({
                 $.jGrowl("Page has been deleted with id " + document.id, {header: "Deleted"});
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                $.jGrowl("Ooooops!, delete request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
-                .responseText);
+                $.jGrowl("Ooooops!, delete request failed with status: " + oXmlHttpRequest
+                .status + ' ' + oXmlHttpRequest.responseText);
             }
         });
     },
@@ -620,6 +626,21 @@ JsrTarText = JsrTextArea.create({
     },
     name: function() {
         return this.spaceToUnderscore(this.firstLine(this.getText()));
+        return this;
+    },
+
+    //=======================
+    // markitup
+    //=======================
+    markitup: function() {
+        $(this._id).markItUp(mySettings);
+    },
+
+    //=======================
+    // replace
+    //=======================
+    replaceWith: function(sElement) {
+        $(this._id).replaceWith(sElement);
         return this;
     }
 });
