@@ -77,6 +77,11 @@ var JsrButtonManager = JsrRoot.create({
     bindButtons: function() {
         log(11);
         var id = 1;
+        this.button(id++, 'FIRST TIME AT SITE', function(e) {
+            JsrCouchDb.readNameText('WELCOME', function(sText) {
+                JsrTarText.setText(sText);
+            });
+        });
         this.button(id++, 'Save Page', function(e) {
             JsrTarText.save(function() {
                 log(11);
@@ -92,13 +97,16 @@ var JsrButtonManager = JsrRoot.create({
         this.button(id++, 'JavaScript Eval', function(e) {
             JsrEval.evaluateLines();
         });
+        this.button(id++, 'JavaScript Print', function(e) {
+            JsrEval.print();
+        });
         JsrStringButton.id('#btn' + id++).setMenu().colorClean();
         log(12);
         this.button(id++, 'Replace', function(e) {
             JsrTarText.replaceWith('<h1>TEST</h1>');
         });
-        this.button(id++, 'Mark It Up', function(e) {
-            JsrTarText.markitup();
+        this.button(id++, 'Creole', function(e) {
+            JsrTarText.creole();
         });
         return this;
     }
@@ -335,6 +343,12 @@ var JsrEval = JsrRoot.create({
         JsrTarText.setText(result);
         return this;
     },
+    print: function () {
+        var text = JsrTarText.getText();
+        var result = this._print(text);
+        JsrTarText.setText(result);
+        return this;
+    },
     breakString: function () {
         var text = JsrTarText.getText();
         var result = this.replaceCr(text, '\\n');
@@ -401,6 +415,15 @@ var JsrEval = JsrRoot.create({
         });
         return display;
     },
+    //===========================
+    // Print
+    //===========================
+    _print: function(sCode) {
+        var javascriptObject = eval(sCode);
+        var printString = PrintVisitor.create().visit(javascriptObject);
+        return printString;
+    },
+
     //===========================
     // Multiline String
     //===========================
@@ -632,8 +655,24 @@ JsrTarText = JsrTextArea.create({
     //=======================
     // markitup
     //=======================
-    markitup: function() {
-        $(this._id).markItUp(mySettings);
+    creole: function() {
+        var text = this.getText();
+        var node = $('#divTar')[0];
+        //eval(decodeEntities($('parser').innerHTML));
+        var creole = new Parse.Simple.Creole({
+            interwiki: {
+                WikiCreole: 'http://www.wikicreole.org/wiki/',
+                Wikipedia: 'http://en.wikipedia.org/wiki/'
+            },
+            linkFormat: ''
+        });
+
+        var render = function() {
+            node.innerHTML = '';
+            creole.parse(node, text);
+        };
+
+        render();
     },
 
     //=======================
