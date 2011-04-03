@@ -104,6 +104,9 @@ var JsrButtonManager = JsrRoot.create({
         this.button(id++, 'Creole', function(e) {
             JsrTarText.toCreole();
         });
+        this.button(id++, 'Markdown', function(e) {
+            JsrTarText.toMarkdown();
+        });
         this.button(id++, 'Text', function(e) {
             JsrTarText.toText();
         });
@@ -655,8 +658,14 @@ JsrTarText = JsrTextArea.create({
     },
 
     //=======================
-    // Creole / Text
+    // Wiki
     //=======================
+    toMarkdown: function() {
+        var text = this.getText();
+        this._text = text;
+        var html = markdown.toHTML(text);
+        $('#divTar').html(html);
+    },
     toCreole: function() {
         var text = this.getText();
         this._text = text;
@@ -680,6 +689,7 @@ JsrTarText = JsrTextArea.create({
     },
     toText: function() {
         $('#divTar').html('<textarea id="tarText" class="tar border"></textarea>');
+        $(this._id).tabby();
         this.setText(this._text);
         return this;
     },
