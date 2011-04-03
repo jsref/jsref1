@@ -221,9 +221,9 @@ var JsrCouchDb = JsrRoot.create({
             type: 'get',
             url: '_view/page-ids',
             success: function(sDocument) {
-                var document = JSON.parse(sDocument);
-                logNO('readIds document', document);
-                var array = document.rows;
+                var couchDocument = JSON.parse(sDocument);
+                logNO('readIds document', couchDocument);
+                var array = couchDocument.rows;
                 var ids = array.map(function(each) {
                     return each.key;
                 });
@@ -244,11 +244,11 @@ var JsrCouchDb = JsrRoot.create({
             data:    JSON.stringify(oDocument),
             async:    false,
             success:    function(sDocument) {
-                var document = JSON.parse(sDocument);
+                var couchDocument = JSON.parse(sDocument);
                 if (fCallback) {
-                    fCallback(document);
+                    fCallback(couchDocument);
                 }
-                $.jGrowl("Your page has been saved with id " + document.id, {header: "Saved"});
+                $.jGrowl("Your page has been saved with id " + couchDocument.id, {header: "Saved"});
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
                 $.jGrowl("Ooooops!, save request failed with status: " + oXmlHttpRequest.status + ' ' + oXmlHttpRequest
@@ -259,34 +259,36 @@ var JsrCouchDb = JsrRoot.create({
     saveNameText: function(sName, sText, fCallback) {
         // get existing object (so will have correct _rev) or create new object
         fCallback = fCallback || null;
-        var document;
+        var couchDocument;
         var _this = this;
         $.ajax({
             type: 'get',
-            url: '../../' + sName + "?revs=true",
+            url: '../../' + sName,
             success: function(sDocument) {
-                document = JSON.parse(sDocument);
-                document.text = sText;
-                document.type = 'page';
-                _this.saveDocument(document, fCallback);
+                //couchDocument exists
+                couchDocument = JSON.parse(sDocument);
+                couchDocument.text = sText;
+                couchDocument.type = 'page';
+                _this.saveDocument(couchDocument, fCallback);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
-                document = {
+                //couchDocument does not exist (normal occurance)
+                couchDocument = {
                     _id: sName
                 };
-                document.text = sText;
-                document.type = 'page';
-                _this.saveDocument(document, fCallback);
+                couchDocument.text = sText;
+                couchDocument.type = 'page';
+                _this.saveDocument(couchDocument, fCallback);
             }
         });
     },
     readNameText: function(sName, fCallback) {
         $.ajax({
             type:    'get',
-            url:    '../../' + sName + "?revs=true",
+            url:    '../../' + sName,
             success: function(sDocument) {
-                var document = JSON.parse(sDocument);
-                var text = document.text;
+                var couchDocument = JSON.parse(sDocument);
+                var text = couchDocument.text;
                 fCallback(text);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
@@ -302,11 +304,11 @@ var JsrCouchDb = JsrRoot.create({
             url:    '../../' + oDocument._id + '?rev=' + oDocument._rev,
             async:    false,
             success:    function(sDocument) {
-                var document = JSON.parse(sDocument);
+                var couchDocument = JSON.parse(sDocument);
                 if (fCallback) {
-                    fCallback(document);
+                    fCallback(couchDocument);
                 }
-                $.jGrowl("Page has been deleted with id " + document.id, {header: "Deleted"});
+                $.jGrowl("Page has been deleted with id " + couchDocument.id, {header: "Deleted"});
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
                 $.jGrowl("Ooooops!, delete request failed with status: " + oXmlHttpRequest
@@ -317,14 +319,14 @@ var JsrCouchDb = JsrRoot.create({
     deleteName: function(sName, fCallback) {
         // get existing object (so will have correct _rev)
         fCallback = fCallback || null;
-        var document;
+        var couchDocument;
         var _this = this;
         $.ajax({
             type: 'get',
-            url: '../../' + sName + "?revs=true",
+            url: '../../' + sName,
             success: function(sDocument) {
-                document = JSON.parse(sDocument);
-                _this.deleteDocument(document, fCallback);
+                couchDocument = JSON.parse(sDocument);
+                _this.deleteDocument(couchDocument, fCallback);
             },
             error: function (oXmlHttpRequest, sStatus, oError) {
                 alert('Document ' + sName + ' could not be accessed');
