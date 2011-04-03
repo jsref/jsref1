@@ -56,6 +56,7 @@ var JsrRoot = PRoot.create({
 });
 var JsrConstant = JsrRoot.create({
     colorButton: 'green',
+    colorButtonWelcome: 'magenta',
     colorButtonClean: 'cyan',
     colorButtonDirty: 'brown'
 
@@ -75,7 +76,6 @@ var JsrButtonManager = JsrRoot.create({
         return this;
     },
     bindButtons: function() {
-        log(11);
         var id = 1;
         this.button(id++, 'FIRST TIME AT SITE', function(e) {
             JsrCouchDb.readNameText('WELCOME', function(sText) {
@@ -101,13 +101,14 @@ var JsrButtonManager = JsrRoot.create({
             JsrEval.print();
         });
         JsrStringButton.id('#btn' + id++).setMenu().colorClean();
-        log(12);
-        this.button(id++, 'Replace', function(e) {
-            JsrTarText.replaceWith('<h1>TEST</h1>');
-        });
         this.button(id++, 'Creole', function(e) {
-            JsrTarText.creole();
+            JsrTarText.toCreole();
         });
+        this.button(id++, 'Text', function(e) {
+            JsrTarText.toText();
+        });
+
+        $('#btn1').css('background-color', JsrConstant.colorButtonWelcome);
         return this;
     }
 });
@@ -621,6 +622,7 @@ var JsrTextArea = JsrRoot.create({
 });
 JsrTarText = JsrTextArea.create({
     _id: '#tarText',
+    _text: null,
 
     //=======================
     // storage
@@ -653,10 +655,11 @@ JsrTarText = JsrTextArea.create({
     },
 
     //=======================
-    // markitup
+    // Creole / Text
     //=======================
-    creole: function() {
+    toCreole: function() {
         var text = this.getText();
+        this._text = text;
         var node = $('#divTar')[0];
         //eval(decodeEntities($('parser').innerHTML));
         var creole = new Parse.Simple.Creole({
@@ -673,6 +676,12 @@ JsrTarText = JsrTextArea.create({
         };
 
         render();
+        return this;
+    },
+    toText: function() {
+        $('#divTar').html('<textarea id="tarText" class="tar border"></textarea>');
+        this.setText(this._text);
+        return this;
     },
 
     //=======================
