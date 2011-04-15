@@ -131,6 +131,11 @@ var Visitor = PRoot.create({
     }
 });
 var PrintVisitor = Visitor.create({
+    //
+    // var myString = PrintVisitor.visit({one:1})
+    // var ws = WriteStream.create()
+    // PrintVisitor.visit({one:1}, ws)
+    //
     crDotVisit: function(v, ws) {
         var string = this.visit(v, ws);
         var crs = string.replace(/\n/g, '<cr>');
